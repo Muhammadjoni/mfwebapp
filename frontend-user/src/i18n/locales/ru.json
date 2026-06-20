@@ -1,0 +1,74 @@
+{
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "retry": "Повторить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "back": "Назад",
+    "search": "Поиск"
+  },
+  "auth": {
+    "login": "Войти",
+    "register": "Зарегистрироваться",
+    "logout": "Выйти",
+    "email": "Email",
+    "password": "Пароль",
+    "firstName": "Имя",
+    "lastName": "Фамилия",
+    "phone": "Телефон",
+    "haveAccount": "Уже есть аккаунт?",
+    "hasAccount": "Уже есть аккаунт?",
+    "noAccount": "Нет аккаунта?",
+    "loginError": "Неверный email или пароль",
+    "invalidCredentials": "Неверный email или пароль",
+    "banned": "Аккаунт заблокирован",
+    "passwordMin": "Минимум 8 символов",
+    "emailTaken": "Email уже используется"
+  },
+  "products": {
+    "title": "Товары",
+    "search": "Поиск товаров",
+    "filters": "Фильтры",
+    "sortBy": "Сортировать",
+    "addToCart": "В корзину",
+    "buyNow": "Купить",
+    "specifications": "Характеристики",
+    "noProducts": "Товары не найдены",
+    "inStock": "В наличии",
+    "outOfStock": "Нет в наличии"
+  },
+  "cart": {
+    "title": "Корзина",
+    "empty": "Корзина пуста",
+    "summary": "Итог",
+    "items": "{{count}} товар(ов)",
+    "subtotal": "Сумма",
+    "total": "Итого",
+    "checkout": "Оформить заказ",
+    "remove": "Удалить",
+    "continueShopping": "Продолжить покупки"
+  },
+  "orders": {
+    "title": "Мои заказы",
+    "empty": "Заказов пока нет",
+    "items": "товар(ов)",
+    "status": {
+      "created": "Создан",
+      "paid": "Оплачен",
+      "processing": "В обработке",
+      "shipped": "Отправлен",
+      "delivered": "Доставлен",
+      "closed": "Закрыт",
+      "cancelled": "Отменён",
+      "refunded": "Возврат"
+    }
+  },
+  "nav": {
+    "home": "Главная",
+    "products": "Товары",
+    "cart": "Корзина",
+    "orders": "Заказы",
+    "account": "Профиль"
+  }
+}

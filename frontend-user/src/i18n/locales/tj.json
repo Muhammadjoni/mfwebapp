@@ -1,0 +1,74 @@
+{
+  "common": {
+    "loading": "Боркунӣ...",
+    "error": "Хато",
+    "retry": "Такрор",
+    "save": "Нигоҳ доштан",
+    "cancel": "Бекор кардан",
+    "back": "Бозгашт",
+    "search": "Ҷустуҷӯ"
+  },
+  "auth": {
+    "login": "Воридшавӣ",
+    "register": "Бақайдгирӣ",
+    "logout": "Баромадан",
+    "email": "Почтаи электронӣ",
+    "password": "Рамз",
+    "firstName": "Ном",
+    "lastName": "Насаб",
+    "phone": "Телефон",
+    "haveAccount": "Аллакай ҳисоб доред?",
+    "hasAccount": "Аллакай ҳисоб доред?",
+    "noAccount": "Ҳисоб надоред?",
+    "loginError": "Email ё рамз нодуруст",
+    "invalidCredentials": "Email ё рамз нодуруст",
+    "banned": "Ҳисоб блок шудааст",
+    "passwordMin": "Ҳадди аққал 8 аломат",
+    "emailTaken": "Email аллакай истифода мешавад"
+  },
+  "products": {
+    "title": "Молҳо",
+    "search": "Ҷустуҷӯи молҳо",
+    "filters": "Филтрҳо",
+    "sortBy": "Мураттаб кардан",
+    "addToCart": "Ба сабад",
+    "buyNow": "Ҳоло харед",
+    "specifications": "Хусусиятҳо",
+    "noProducts": "Молҳо ёфт нашуданд",
+    "inStock": "Дар анбор",
+    "outOfStock": "Нест"
+  },
+  "cart": {
+    "title": "Сабад",
+    "empty": "Сабад холӣ аст",
+    "summary": "Ҷамъбаст",
+    "items": "{{count}} мол",
+    "subtotal": "Маблағ",
+    "total": "Ҷамъ",
+    "checkout": "Фармоиш додан",
+    "remove": "Нест кардан",
+    "continueShopping": "Харидро давом додан"
+  },
+  "orders": {
+    "title": "Фармоишҳои ман",
+    "empty": "Ҳоло фармоише нест",
+    "items": "мол",
+    "status": {
+      "created": "Сохта шуд",
+      "paid": "Пардохт шуд",
+      "processing": "Дар коркард",
+      "shipped": "Фиристода шуд",
+      "delivered": "Расонда шуд",
+      "closed": "Баста шуд",
+      "cancelled": "Бекор шуд",
+      "refunded": "Бозгашт"
+    }
+  },
+  "nav": {
+    "home": "Саҳифаи аввал",
+    "products": "Молҳо",
+    "cart": "Сабад",
+    "orders": "Фармоишҳо",
+    "account": "Профил"
+  }
+}
