@@ -14,6 +14,8 @@ type Router struct {
 	auth    *AuthHandler
 	product *ProductHandler
 	order   *OrderHandler
+	cart    *CartHandler
+	admin   *AdminHandler
 	authMW  *middleware.AuthMiddleware
 	origins []string
 	rateRPM int
@@ -23,11 +25,22 @@ func NewRouter(
 	auth *AuthHandler,
 	product *ProductHandler,
 	order *OrderHandler,
+	cart *CartHandler,
+	admin *AdminHandler,
 	authMW *middleware.AuthMiddleware,
 	origins []string,
 	rateRPM int,
 ) *Router {
-	return &Router{auth: auth, product: product, order: order, authMW: authMW, origins: origins, rateRPM: rateRPM}
+	return &Router{
+		auth:    auth,
+		product: product,
+		order:   order,
+		cart:    cart,
+		admin:   admin,
+		authMW:  authMW,
+		origins: origins,
+		rateRPM: rateRPM,
+	}
 }
 
 func (rt *Router) Build() http.Handler {
@@ -53,7 +66,7 @@ func (rt *Router) Build() http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public
+		// ── Public ──────────────────────────────────────────────────────────────
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", rt.auth.Register)
 			r.Post("/login", rt.auth.Login)
@@ -66,28 +79,57 @@ func (rt *Router) Build() http.Handler {
 			r.Get("/{id}", rt.product.Get)
 		})
 
-		// Authenticated
+		// ── Authenticated (any role) ─────────────────────────────────────────────
 		r.Group(func(r chi.Router) {
 			r.Use(rt.authMW.Authenticate)
 
-			r.Post("/orders", rt.order.Create)
+			// Current user profile
+			r.Get("/me", rt.admin.Me)
 
-			// Seller + Admin
+			// Orders
+			r.Get("/orders", rt.order.List)
+			r.Post("/orders", rt.order.Create)
+			r.Get("/orders/{id}", rt.order.Get)
+
+			// Cart
+			r.Route("/cart", func(r chi.Router) {
+				r.Get("/", rt.cart.Get)
+				r.Post("/items", rt.cart.AddItem)
+				r.Delete("/items", rt.cart.RemoveItem)
+				r.Delete("/", rt.cart.Clear)
+			})
+
+			// Seller operations
 			r.Group(func(r chi.Router) {
 				r.Use(rt.authMW.RequireRole("seller", "admin"))
 				r.Post("/seller/products", rt.product.Create)
 			})
 		})
 
-		// Admin-only
+		// ── Admin-only ───────────────────────────────────────────────────────────
 		r.Group(func(r chi.Router) {
 			r.Use(rt.authMW.Authenticate)
 			r.Use(rt.authMW.RequireRole("admin"))
 
 			r.Route("/admin", func(r chi.Router) {
-				r.Patch("/orders/{id}/status", rt.order.UpdateStatus)
+				// Users
+				r.Get("/users", rt.admin.ListUsers)
+				r.Patch("/users/{id}/status", rt.admin.UpdateUserStatus)
+				r.Patch("/users/{id}/role", rt.admin.UpdateUserRole)
+
+				// Sellers
+				r.Get("/sellers", rt.admin.ListSellers)
+				r.Post("/sellers/{id}/approve", rt.admin.ApproveSeller)
+				r.Post("/sellers/{id}/reject", rt.admin.RejectSeller)
+
+				// Products
+				r.Get("/products", rt.admin.ListProducts)
 				r.Post("/products/{id}/approve", rt.product.Approve)
 				r.Post("/products/{id}/reject", rt.product.Reject)
+
+				// Orders
+				r.Get("/orders", rt.admin.ListOrders)
+				r.Patch("/orders/{id}/status", rt.order.UpdateStatus)
 			})
 		})
 	})

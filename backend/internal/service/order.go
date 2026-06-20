@@ -127,6 +127,25 @@ func isTransitionAllowed(from, to entity.OrderStatus) bool {
 	return false
 }
 
+func (s *OrderService) GetByID(ctx context.Context, orderID, userID uuid.UUID) (*entity.Order, error) {
+	order, err := s.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, ErrOrderNotFound
+	}
+	if order.UserID != userID {
+		return nil, ErrOrderNotFound
+	}
+	return order, nil
+}
+
+func (s *OrderService) ListByUser(ctx context.Context, userID uuid.UUID, page, limit int) ([]*entity.Order, int64, error) {
+	return s.orderRepo.GetByUserID(ctx, userID, page, limit)
+}
+
+func (s *OrderService) ListAll(ctx context.Context, filter repository.OrderFilter) ([]*entity.Order, int64, error) {
+	return s.orderRepo.List(ctx, filter)
+}
+
 func firstImage(images []string) string {
 	if len(images) > 0 {
 		return images[0]

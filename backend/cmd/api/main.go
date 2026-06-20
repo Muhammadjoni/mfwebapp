@@ -6,14 +6,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/muhammadjoni/mfwebapp/internal/config"
 	v1 "github.com/muhammadjoni/mfwebapp/internal/handler/http/v1"
 	"github.com/muhammadjoni/mfwebapp/internal/handler/middleware"
 	"github.com/muhammadjoni/mfwebapp/internal/infrastructure/database"
+	pgRepo "github.com/muhammadjoni/mfwebapp/internal/repository/postgres"
+	"github.com/muhammadjoni/mfwebapp/internal/service"
+	"github.com/muhammadjoni/mfwebapp/migrations"
 	"github.com/muhammadjoni/mfwebapp/pkg/hash"
 	"github.com/muhammadjoni/mfwebapp/pkg/jwt"
 	"github.com/muhammadjoni/mfwebapp/pkg/logger"
@@ -38,6 +44,13 @@ func main() {
 
 	ctx := context.Background()
 
+	// ── Auto-migrate ────────────────────────────────────────────────────────
+	if err := runMigrations(ctx, cfg.DB.DSN, log); err != nil {
+		log.Fatal("migration failed", zap.Error(err))
+	}
+	log.Info("migrations applied")
+
+	// ── Database pool ────────────────────────────────────────────────────────
 	pool, err := database.NewPool(ctx, database.Config{
 		DSN:          cfg.DB.DSN,
 		MaxOpenConns: cfg.DB.MaxOpenConns,
@@ -50,6 +63,7 @@ func main() {
 	defer pool.Close()
 	log.Info("database connected")
 
+	// ── Infrastructure ───────────────────────────────────────────────────────
 	jwtMgr := jwt.NewManager(
 		cfg.JWT.AccessSecret,
 		cfg.JWT.RefreshSecret,
@@ -58,28 +72,43 @@ func main() {
 	)
 	hasher := hash.NewHasher(cfg.Security.BcryptCost)
 
-	// Suppress unused warnings until real repos are wired
-	_ = hasher
-	_ = pool
+	// ── Repositories ─────────────────────────────────────────────────────────
+	userRepo := pgRepo.NewUserRepository(pool)
+	productRepo := pgRepo.NewProductRepository(pool)
+	categoryRepo := pgRepo.NewCategoryRepository(pool)
+	orderRepo := pgRepo.NewOrderRepository(pool)
+	cartRepo := pgRepo.NewCartRepository(pool)
+	sellerRepo := pgRepo.NewSellerRepository(pool)
 
+	// ── Services ─────────────────────────────────────────────────────────────
+	authSvc := service.NewAuthService(userRepo, jwtMgr, hasher, &cfg.JWT)
+	productSvc := service.NewProductService(productRepo, categoryRepo)
+	orderSvc := service.NewOrderService(orderRepo, productRepo, cartRepo)
+	cartSvc := service.NewCartService(cartRepo)
+	userSvc := service.NewUserService(userRepo)
+	sellerSvc := service.NewSellerService(sellerRepo)
+
+	// ── Handlers ─────────────────────────────────────────────────────────────
+	authHandler := v1.NewAuthHandler(authSvc)
+	productHandler := v1.NewProductHandler(productSvc)
+	orderHandler := v1.NewOrderHandler(orderSvc)
+	cartHandler := v1.NewCartHandler(cartSvc)
+	adminHandler := v1.NewAdminHandler(userSvc, sellerSvc, orderSvc, productSvc)
+
+	// ── Middleware & Router ───────────────────────────────────────────────────
 	authMW := middleware.NewAuthMiddleware(jwtMgr)
-
-	// TODO: wire real postgres repository implementations then inject into services
-	// e.g. userRepo := postgres.NewUserRepository(pool)
-	//      authSvc  := service.NewAuthService(userRepo, jwtMgr, hasher, &cfg.JWT)
-	var authHandler *v1.AuthHandler
-	var productHandler *v1.ProductHandler
-	var orderHandler *v1.OrderHandler
-
 	router := v1.NewRouter(
 		authHandler,
 		productHandler,
 		orderHandler,
+		cartHandler,
+		adminHandler,
 		authMW,
 		cfg.Security.AllowedOrigins,
 		cfg.Security.RateLimitRPM,
 	)
 
+	// ── HTTP server ───────────────────────────────────────────────────────────
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Host + ":" + cfg.HTTP.Port,
 		Handler:      router.Build(),
@@ -108,4 +137,54 @@ func main() {
 	}
 	<-done
 	log.Info("server stopped")
+}
+
+// runMigrations checks if the schema exists and applies it if not.
+// It uses a single pgx connection (not the pool) so it can run before the pool.
+func runMigrations(ctx context.Context, dsn string, log *zap.Logger) error {
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer conn.Close(ctx)
+
+	var exists bool
+	if err := conn.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables
+			WHERE table_schema='public' AND table_name='users'
+		)`).Scan(&exists); err != nil {
+		return fmt.Errorf("check schema: %w", err)
+	}
+	if exists {
+		log.Info("schema already exists, skipping migration")
+		return nil
+	}
+
+	log.Info("applying initial migration")
+	sqlBytes, err := migrations.FS.ReadFile("001_init_schema.sql")
+	if err != nil {
+		return fmt.Errorf("read migration: %w", err)
+	}
+
+	sql := extractGooseUp(string(sqlBytes))
+	if _, err := conn.Exec(ctx, sql); err != nil {
+		return fmt.Errorf("execute migration: %w", err)
+	}
+	return nil
+}
+
+var gooseDirective = regexp.MustCompile(`-- \+goose\s+\S+\s*\n?`)
+
+// extractGooseUp strips goose directives and returns only the Up section.
+func extractGooseUp(content string) string {
+	downIdx := strings.Index(content, "-- +goose Down")
+	if downIdx > 0 {
+		content = content[:downIdx]
+	}
+	upIdx := strings.Index(content, "-- +goose Up")
+	if upIdx >= 0 {
+		content = content[upIdx:]
+	}
+	return strings.TrimSpace(gooseDirective.ReplaceAllString(content, ""))
 }

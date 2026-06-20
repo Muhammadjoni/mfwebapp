@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -68,6 +69,54 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusCreated, order)
+}
+
+func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.ContextKeyUserID).(uuid.UUID)
+	if !ok {
+		response.Unauthorized(w)
+		return
+	}
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+
+	orders, total, err := h.orderSvc.ListByUser(r.Context(), userID, page, limit)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	response.JSONWithMeta(w, http.StatusOK, orders, &response.Meta{
+		Page:       page,
+		Limit:      limit,
+		TotalItems: total,
+		TotalPages: (total + int64(limit) - 1) / int64(limit),
+	})
+}
+
+func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.ContextKeyUserID).(uuid.UUID)
+	if !ok {
+		response.Unauthorized(w)
+		return
+	}
+	orderID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.BadRequest(w, "invalid order id")
+		return
+	}
+	order, err := h.orderSvc.GetByID(r.Context(), orderID, userID)
+	if err != nil {
+		response.NotFound(w, "order")
+		return
+	}
+	response.JSON(w, http.StatusOK, order)
 }
 
 func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
